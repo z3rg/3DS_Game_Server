@@ -19,11 +19,13 @@ To use an updated releases list, download '3dsreleases.xml' from http://www.3dsd
 - Set "releasesXML" and "ciaFolder"
 - i suggest to roms/cia to be in line with the BuildCatalog.py
 - Like so
+```
     BuildCatalog.py
     StartServer.py
     . . .
     |
     -- "CIAs Rom Directory"  
+```
 2. Create a folder to match the name set in "ciaFolder"
 3. Dump all desired CIAs into the created folder (subfolders are OK)
 4. Run BuildCatalog.py
