@@ -3,64 +3,59 @@ import sys
 from struct import unpack
 import xml.etree.ElementTree as ET
 import shutil
-import SimpleHTTPServer
-import SocketServer
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 import socket
 import webbrowser
 
-releasesXML = '3dsreleases.xml' # Name of XML downloaded from http://www.3dsdb.com/
-ciaFolder = 'CIAs' # Root folder with CIAs
+releasesXML = '3dsreleases.xml'  # Name of XML downloaded from http://www.3dsdb.com/
+ciaFolder = 'Complete US 3DS ROM Set (CIA)'  # Root folder with CIAs
 
 def buildReleaseLookup(input_file):
     tree = ET.parse(input_file)
     root = tree.getroot()
-    return(root)
+    return root
 
 def getTitleID(input_file):
-    cia_file = open(input_file, 'r+b')
-    cia_header = cia_file.read(0x20)
+    with open(input_file, 'rb') as cia_file:
+        cia_header = cia_file.read(0x20)
 
-    # Find offset for tmd
-    cert_offset = 0x2040
-    cert_size = unpack('<I', cia_header[0x08:0x0C])[0]
-    tik_size = unpack('<I', cia_header[0x0C:0x10])[0]
-    tmd_size = unpack('<I', cia_header[0x10:0x14])[0]
-    tmd_offset = cert_offset + cert_size + 0x30 + tik_size
-    # print(format(tmd_offset, '08x'))
+        # Find offset for tmd
+        cert_offset = 0x2040
+        cert_size = unpack('<I', cia_header[0x08:0x0C])[0]
+        tik_size = unpack('<I', cia_header[0x0C:0x10])[0]
+        tmd_size = unpack('<I', cia_header[0x10:0x14])[0]
+        tmd_offset = cert_offset + cert_size + 0x30 + tik_size
 
-    # Read titleid from tmd
-    cia_file.seek(tmd_offset + 0x18C)
-    titleid = format(unpack('>Q', cia_file.read(0x8))[0], '016x')
-    cia_file.close()
-    return(titleid)
-    
+        # Read titleid from tmd
+        cia_file.seek(tmd_offset + 0x18C)
+        titleid = format(unpack('>Q', cia_file.read(0x8))[0], '016x')
+        return titleid
+
 def addListing(release):
     global strTable
     name = release.find('name').text
-    print('Found game "%s"...' % name)
-    id = release.find('serial').text.split('-')
-    stringcount = len(id)
-    print('count "%s"..' % stringcount)
-    if stringcount == 3:
-        id = release.find('serial').text.split('-')[2]
-    elif stringcount == 2:
-        id = release.find('serial').text.split('-')[1]
-
-    coverURL = 'https://art.gametdb.com/3ds/box/US/%s.png' % id
-    dbURL = 'https://www.gametdb.com/3DS/%s' % id
-    strTable = strTable + '''
+    print(f'Found game "{name}"...')
+    id_parts = release.find('serial').text.split('-')
+    id = id_parts[-1]  # Get the last part of the serial
+    
+    coverURL = f'https://art.gametdb.com/3ds/box/US/{id}.png'
+    dbURL = f'https://www.gametdb.com/3DS/{id}'
+    strTable += f'''
     <tr>
-        <td><a href="%s">%s</a></td>
-        <td><img src="%s"></td>
-        <td><a href="%s"><div id="qrcode%s"></div>
+        <td><a href="{dbURL}">{name}</a></td>
+        <td><img src="{coverURL}"></td>
+        <td><a href="{relpath}"><div id="qrcode{id}"></div>
             <script type="text/javascript">
             var loc = window.location.href;
             var dir = loc.substring(0, loc.lastIndexOf('/'));
-            new QRCode(document.getElementById("qrcode%s"),{width : 125,height : 125,text: encodeURI(dir + "/%s")});
+            //console.log(document.getElementById("qrcode{id}"));
+            //console.log("encodeURI:"+encodeURI(dir + "/{relpath.replace(os.sep, '/')}"))
+            new QRCode(document.getElementById("qrcode{id}"),{{width : 125,height : 125,text: encodeURI(dir + "/{relpath.replace(os.sep, '/')}") }});
             </script></a></td>
-    </tr>''' % (dbURL,name,coverURL,relpath,id,id,relpath.replace(os.sep, '/'))
+    </tr>'''
     print('Done.')
-    
+
 releases = buildReleaseLookup(releasesXML)
 
 strTable = '''<html>
@@ -75,22 +70,21 @@ strTable = '''<html>
             </tr>'''
 
 # Process every CIA in ciaFolder and subfolders
-for (root,dirs,files) in os.walk(os.path.join(os.path.dirname(__file__),ciaFolder)):
+for root, dirs, files in os.walk(os.path.join(os.path.dirname(__file__), ciaFolder)):
     for file in files:
         if file.endswith('.cia'):
-            filepath = os.path.join(os.path.join(root, file))
-            relpath = os.path.relpath(os.path.join(root, file),os.path.dirname(__file__))
+            filepath = os.path.join(root, file)
+            relpath = os.path.relpath(filepath, os.path.dirname(__file__))
             titleid = getTitleID(filepath)
-            print('Processing "%s"...' % file)
-            print('Title ID: %s' % titleid)
+            print(f'Processing "{file}"...')
+            print(f'Title ID: {titleid}')
             for release in releases:
                 if release.find('titleid').text.lower() == titleid.lower():
                     addListing(release)
                     break
 
-strTable = strTable+"</table></html>"
+strTable += "</table></html>"
 
 htmlFile = 'index.html'
-hs = open(htmlFile, 'w')
-hs.write(strTable)
-hs.close()
+with open(htmlFile, 'w') as hs:
+    hs.write(strTable)

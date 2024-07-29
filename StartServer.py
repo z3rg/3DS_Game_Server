@@ -1,14 +1,14 @@
-import SimpleHTTPServer
-import SocketServer
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 import socket
 import os
 import webbrowser
 
-PORT = 8000 # Desired web server port
+PORT = 80  # Desired web server port
 
 # Start the server and open the web page
-Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-httpd = SocketServer.TCPServer(("", PORT), Handler)
-print("Web server started: http://%s:%s" % (socket.gethostname(),PORT))
-webbrowser.open_new("http://%s:%s" % (socket.gethostname(),PORT))
+Handler = SimpleHTTPRequestHandler
+httpd = TCPServer(("", PORT), Handler)
+print(f"Web server started: http://www.thegame.com:{PORT}")
+webbrowser.open_new(f"http://www.thegame.com:{PORT}")
 httpd.serve_forever()
