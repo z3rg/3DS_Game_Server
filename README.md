@@ -1,4 +1,6 @@
-# 3DS_Game_Server
+# 3DS Game Server
+
+Give credit to https://github.com/elmerohueso and https://github.com/MrHappy
 
 Updated for Python 3.x
 
